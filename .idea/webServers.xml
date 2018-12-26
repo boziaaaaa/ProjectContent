@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="ef72ba0e-00ba-4e3f-b50e-799c37b84b4d" name="10.24.10.103" url="http://10.24.10.103">
+        <fileTransfer host="10.24.10.103" port="22" rootFolder="/FY4COMM/FY4A/EXE/" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+      <webServer id="c4d69e67-82ac-432b-8179-3d15b36748ea" name="10.24.189.195：83" url="http://10.24.189.195">
+        <fileTransfer host="10.24.189.195" port="83" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="83" />
+        </fileTransfer>
+      </webServer>
+      <webServer id="20126010-7f4b-4e67-b936-e69edb6403d9" name="10.24.34.219" url="http://10.24.34.219">
+        <fileTransfer host="10.24.34.219" port="22" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+      <webServer id="30ded7f3-d9d8-4d31-90e2-228d02cd7586" name="10.24.10.12" url="http://10.24.10.12">
+        <fileTransfer host="10.24.10.12" port="22" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+      <webServer id="bcf4af8a-5f27-40d5-94c2-cfe38bc92d24" name="10.24.10.40" url="http://10.24.10.40">
+        <fileTransfer host="10.24.10.40" port="22" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+      <webServer id="00a22fb6-22ce-41c1-ae99-a6e4a844bbb9" name="10.24.4.116" url="http://10.24.4.116">
+        <fileTransfer host="10.24.4.116" port="22" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
