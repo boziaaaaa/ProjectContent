@@ -21,9 +21,6 @@ def NC2DAT(inputNC,outputDAT):
             minLat = -55
     interval = 0.1
 
-    # LAT = [-15.91,-15.91,-54.901,-55]
-    # LON = [70.1,70.1,139.991,70]
-
     length = len(LAT)
     x_pixel = []
     y_pixel = []
