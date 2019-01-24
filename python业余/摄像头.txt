@@ -1,0 +1,18 @@
+import cv2
+import numpy as np
+# from PIL import Image
+cap = cv2.VideoCapture(0) # 0 means Camera
+while(1):
+    ret, frame = cap.read()    # get a frame
+    # cv2.imshow("capture", frame)    # show a frame
+
+    # image = Image.fromarray(frame)
+    image = np.array(frame)
+
+    cv2.imwrite("2.png",image)
+
+    # image.save("1.png","png")
+    # if cv2.waitKey(1) & 0xFF == ord('q'):
+    break
+cap.release()
+cv2.destroyAllWindows()

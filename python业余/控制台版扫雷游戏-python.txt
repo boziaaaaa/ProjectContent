@@ -1,0 +1,117 @@
+#-*-coding:utf-8-*-
+
+import sys
+import random
+import string
+
+class MineSweeping():
+
+    def __init__(self):
+        self.Row = 8
+        self.Line = 8
+        self.Score =0
+        self.MineNum = random.randint(1,15)
+        self.Range =str(range(0,8))# ['0','1','2','3','4','5','6','7']
+        self.xy_list = [[0]*8,[0]*8,[0]*8,[0]*8,[0]*8,[0]*8,[0]*8,[0]*8]
+        #self.flag = [[0]*8,[0]*8,[0]*8,[0]*8,[0]*8,[0]*8,[0]*8,[0]*8]
+    def initData(self):
+
+        Max = self.MineNum
+
+        i=0
+        while i in range(Max):
+            x=random.randint(0,7)
+            y=random.randint(0,7)
+            if self.xy_list[x][y] == 1:
+                continue
+            else:
+                self.xy_list[x][y] =1
+                i=i+1
+        #return self.xy_list
+    def getX(self):
+        xRet = str(raw_input("X="))
+       # xRet=str(xRet)
+        while (xRet not in self.Range) :
+            print 'Wrong number! please input again(0-7):'
+            xRet = str(raw_input("X="))
+        return int(xRet)
+
+    def getY(self):
+        #sys.stdout.write('X=')
+        yRet =str(raw_input("Y="))
+        while  ( yRet not in self.Range):
+            print 'Wrong number! please input again(0-7):'
+            yRet = str(raw_input("Y="))
+        return int(yRet)
+
+    def checkMine(self,xPos,yPos):
+
+        if self.xy_list[xPos][yPos] == 1:
+
+            return 1
+        else:
+
+            return 0
+
+    def play(self):
+        self.initData()
+        self.score=0
+
+        print "Game Start! input _x_y:"
+
+        while(1):
+            x = self.getX()
+            y = self.getY()
+            #self.checkMine(x,y)
+
+            while(self.xy_list[x][y] == 9):
+                print "x,y has exist,please change x,y:"
+
+                x = self.getX()
+                y = self.getY()
+            if(self.xy_list[x][y] == 1):
+                self.display(1)
+                break
+            else:
+                self.xy_list[x][y] = 9
+                self.display(0)
+
+
+    def display(self,kind):
+        print"---------------"
+        if kind == 0:
+            out_list0 = ''
+            for i in range(self.Row):
+                print '|',
+                for j in range(self.Line):
+                    if self.xy_list[i][j] == 1:
+                        out_list0 += '0'
+                    else:
+                        out_list0 += str(self.xy_list[i][j])
+                    j=j+1
+                i=i+1
+                print out_list0,
+                out_list0=''
+                print '|\n'
+
+        elif kind == 1:
+            out_list = ''
+            for i in range(self.Row):
+                print '|',
+                for j in range(self.Line):
+                    if self.xy_list[i][j]==0:
+                        out_list += str(self.xy_list[i][j])
+                    else:
+                        out_list += 'X'
+                    j=j+1
+                i=i+1
+                print out_list,
+                out_list=''
+                print '|'
+
+        print"---------------"
+
+
+if __name__ == '__main__':
+    ms=MineSweeping()
+    ms.play()
