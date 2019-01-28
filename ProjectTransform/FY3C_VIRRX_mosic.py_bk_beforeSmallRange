@@ -1,0 +1,266 @@
+# -*-coding=UTF-8-*-
+import h5py
+import sys
+import numpy as N
+import os
+import glob
+import time
+from PIL import Image
+
+
+def MosaicImage_gray(InputFilePath):
+    hdf_in = h5py.File(InputFilePath)
+    BandData = hdf_in['sea_surface_temperature'].value[:, :]
+
+    temp_Disk = BandData.astype('f4')
+    temp_Disk[temp_Disk < -800] = N.nan
+    max = N.nanmax(temp_Disk)
+    min = N.nanmin(temp_Disk)
+
+    temp_Disk[temp_Disk > max] = max
+    temp_Disk[temp_Disk < min] = min
+
+    temp_Disk -= min
+    temp_Disk *= 255
+    temp_Disk /= (max - min)
+
+    img_Disk = Image.fromarray(temp_Disk.astype(N.uint8))
+    JPGname = InputFilePath.replace('.HDF', '.jpg')
+    img_Disk.save(JPGname)
+    return 0
+
+
+def Trans(inputArray):
+    # "single": [[-888.0,[0,0,0],         "��Чֵ" ],
+    #             [65530.0,[120,67, 29 ],  "½��"    ],
+    #             [65532.0,[172,172,166],  "�����춥�Ǵ���70��" ],
+    #             [65535.0,[255,255,255 ,  "��̫��"    ]  ],
+    # "gradient": [[-5.0,[0,0,139]],
+    #             [5.0, [48,12,250]],
+    #             [15.0,[41, 194, 207]],
+    #             [25.0,[69, 191, 51 ]],
+    #             [35.0,[215,219, 38 ]],
+    #             [45.0,[236,32,  15 ]] ],
+    # single = {    -999.0:[0,0,0],65530.0:[120,67, 29 ],65532.0:[172,172,166],65535.0:[255,255,255] }
+    single = {-999.0: [150, 150, 150], 65530.0: [120, 67, 29], 65532.0: [172, 172, 166], 65535.0: [255, 255, 255]}
+
+    gradient = {-5.0: [0, 0, 139],
+                5.0: [48, 12, 250],
+                15.0: [41, 194, 207],
+                25.0: [69, 191, 51],
+                35.0: [215, 219, 38],
+                45.0: [236, 32, 15]}
+    inputArray = N.array(inputArray)
+    r = N.zeros(inputArray.shape)
+    g = N.zeros(inputArray.shape)
+    b = N.zeros(inputArray.shape)
+
+    for key in single:
+        r[inputArray == key] = single[key][0]
+        g[inputArray == key] = single[key][1]
+        b[inputArray == key] = single[key][2]
+    for key in gradient:
+        if key != 45:
+            mask = inputArray >= key
+            mask &= inputArray < (key + 10)
+            r[mask] = (inputArray[mask] - key) / 10 * (gradient[key + 10][0] - gradient[key][0]) + gradient[key][0]
+            g[mask] = (inputArray[mask] - key) / 10 * (gradient[key + 10][1] - gradient[key][1]) + gradient[key][1]
+            b[mask] = (inputArray[mask] - key) / 10 * (gradient[key + 10][2] - gradient[key][2]) + gradient[key][2]
+            print "00000000000000000"
+            print (inputArray[mask] - key) / 10 * (gradient[key + 10][0] - gradient[key][0]), (
+                    gradient[key + 10][0] - gradient[key][0]), gradient[key][0]
+            print (inputArray[mask] - key) / 10 * (gradient[key + 10][1] - gradient[key][1]), (
+                    gradient[key + 10][1] - gradient[key][1]), gradient[key][1]
+            print (inputArray[mask] - key) / 10 * (gradient[key + 10][2] - gradient[key][2]), (
+                    gradient[key + 10][2] - gradient[key][2]), gradient[key][2]
+
+            print "11111111111111111"
+
+            print r[mask]
+            print g[mask]
+            print b[mask]
+        else:
+            mask = inputArray >= key
+            r[mask] = gradient[key][0]
+            g[mask] = gradient[key][1]
+            b[mask] = gradient[key][2]
+    return r, g, b
+
+
+def MosaicImage_RGB(InputFilePath):
+    hdf_in = h5py.File(InputFilePath)
+    BandData = hdf_in['sea_surface_temperature'].value[:, :]
+
+    mask_t = N.where(BandData > -800)
+    BandData[mask_t] = BandData[mask_t] / 100
+    '''temp_Disk = BandData.astype('f4')
+    temp_Disk[temp_Disk < -800] = N.nan
+    max = N.nanmax(temp_Disk)
+    min = N.nanmin(temp_Disk)    
+        
+    temp_Disk[temp_Disk > max] = max        
+    temp_Disk[temp_Disk < min] = min           
+  
+    temp_Disk -= min
+    temp_Disk *=255
+    temp_Disk /=(max - min)'''
+
+    r, g, b = Trans(BandData)  # bb bigger Image Redder
+    # print r[r>0]
+    # print g[g>0]
+    # print b[b>0]
+    Height, Width = BandData.shape
+    rgbArray = N.zeros((Height, Width, 3), 'uint8')
+    rgbArray[..., 0] = r
+    rgbArray[..., 1] = g
+    rgbArray[..., 2] = b
+    OutputImg = Image.fromarray(rgbArray, mode="RGB")
+    JPGname = InputFilePath.replace('.HDF', '.jpg')
+    OutputImg.save(JPGname)
+
+    return 0
+
+
+def mosaic(InputFilePath, OutputFilePath, inputTime):
+    # print "OutputFile-->", OutputFile
+    # print "inputTime",inputTime
+    outTime = OutputFilePath[-8:-4]
+    # print "outTime",outTime
+
+    # read data
+    hdf_in = h5py.File(InputFilePath)
+    Band1_in = hdf_in['sea_surface_temperature'].value[:, :]
+
+    if (os.path.exists(OutputFilePath) == False):
+        print("create temp HDF file-->")
+        print(OutputFilePath)
+        OutputHDF = h5py.File(OutputFilePath, 'w')
+        OutputHDF.create_dataset("sea_surface_temperature", data=Band1_in)
+
+        OutputHDF.close()
+    hdf_out = h5py.File(OutputFilePath)
+    Band1_out = hdf_out['sea_surface_temperature'].value[:, :]
+
+    mask_in = N.array(Band1_in)
+    mask_in[:, :] = 0
+    mask_in[Band1_in < 32767] = 1
+    mask_in[Band1_in == -999] = 0
+    mask_in[Band1_in == -888] = 0
+
+    # mask_in[SunZenith_in/100 > 90] = 0  # if SunZenith greater than 90,abandon
+
+    mask_out = N.array(Band1_out)
+    mask_out[:, :] = 0
+    mask_out[Band1_out < 32767] = 1  #
+    mask_out[Band1_out == -999] = 0  #
+    mask_out[Band1_out == -888] = 0  #
+
+    # mask_out[SunZenith_out/100 > 90] = 0
+
+    mask_total = mask_in + mask_out
+    Index_repeat = N.where(mask_total == 2)
+    timeIn = int(inputTime)
+    timeOut = int(outTime)
+
+    if (timeOut > timeIn):  # chose the new data of repeat area
+        mask_in[Index_repeat] = 0
+    else:
+        mask_out[Index_repeat] = 0
+
+    Index_in = N.where(mask_in > 0)
+    Index_out = N.where(mask_out > 0)
+
+    Band1_mosaic = N.array(Band1_in)  # can not: Band1_mosaic=Band1_in equal Band1_mosaic=&Band1_in!!!
+    Band1_mosaic[:, :] = -999.0  # fill value
+
+    Band1_mosaic[Index_in] = Band1_in[Index_in]
+    Band1_mosaic[Index_out] = Band1_out[Index_out]
+
+    hdf_in.close()
+    hdf_out.close()
+    print "InputFile-->", OutputFilePath
+
+    StrCmd = "rm -f " + OutputFilePath
+    print StrCmd
+    os.system(StrCmd)
+    print "InputFile-->", OutputFilePath
+
+    finalOutputFile = OutputFilePath[:-8] + inputTime + OutputFilePath[-4:]
+    mosaicHDF = h5py.File(finalOutputFile, 'w')
+    mosaicHDF.create_dataset("sea_surface_temperature", data=Band1_mosaic)
+    mosaicHDF.close()
+    return finalOutputFile
+
+
+if __name__ == '__main__':
+    startTime = time.time()
+
+    # --------->����������
+    inputPath_Proj = sys.argv[1]
+    ouputPath_Proj = sys.argv[2] + "proj_temp/"
+    inputPath_Mosaic = ouputPath_Proj
+    outputPath_Mosaic = sys.argv[2]
+    date = sys.argv[3]
+    xmlfile = sys.argv[4]
+    # <---------
+
+    # --------->������ѡ�����ڵĺ���L2��������� ͶӰ
+    if os.path.exists(ouputPath_Proj) == False:
+        command = "mkdir " + ouputPath_Proj
+        os.system(command)
+        print ouputPath_Proj, "not exist,so create!!"
+    # command = "python /gds/Run/ProjectTransform/run_FY3CAutoProj.py "+inputPath_Proj+" "+ouputPath_Proj+" "+date
+    command = "python /gds/Run/ProjectTransform/FY3CAutoProj_run.py " + inputPath_Proj + " " + ouputPath_Proj + " " + date + " " + xmlfile
+    print command
+    status = -1
+    status = os.system(command)
+    print status
+    if status == 0:
+        print "proj of VIRR Successful!!"
+        # <---------
+
+    # --------->��ͶӰ��ĺ���L2������ ƴ��
+    print "mosaic of VIRR begin!! \nL2 file date is:", date
+    OutputFile = outputPath_Mosaic + "FY3C_Mosaic_0000_0000.HDF"
+    files = os.listdir(inputPath_Mosaic)
+    inputTime = ''
+    for f in files:
+        if (".HDF" in f) and (date in f):
+            inputTime = f[14:18]
+            inputFile = inputPath_Mosaic + f
+            print inputFile
+            print OutputFile
+            print inputTime
+            finalOutputFile = mosaic(inputFile, OutputFile, inputTime)
+            OutputFile = finalOutputFile
+    command = "mv " + OutputFile + " " + outputPath_Mosaic + "FY3C_VIRR_MOSAIC_" + date + "_PD.HDF"
+    print command
+    status = os.system(command)
+    print status
+    if status == 0:
+        print "mosaic of VIRR Successful!!"
+    command = "rm -rf " + ouputPath_Proj  # delete Project files
+    print command
+    status = os.system(command)
+    if status == 0:
+        print "delete ", ouputPath_Proj, " "
+    # <--------------
+
+    # ------------>��ƴ�Ӻ��HDF�������ɫͼƬ
+    FinalHdfFile = outputPath_Mosaic + "FY3C_VIRR_MOSAIC_" + date + "_PD.HDF"
+    # FinalHdfFile = "/gds/DATA/mosaic/FY3C_VIRR_mosaic_20171120.HDF"
+    status = MosaicImage_RGB(FinalHdfFile)
+    if status == 0:
+        print "Image Success!!! "
+    # <-------------
+
+    # ------------>ƴ�Ӻ�HDF�ļ����ƺ�JPG�ļ��������
+    JPGname = FinalHdfFile.replace("HDF", "jpg")
+    command = "python /gds/Run/ProjectTransform/fileNameToSQL.py " + JPGname + " " + FinalHdfFile
+    status = os.system(command)
+    if status == 0:
+        print "file name write to SQL Success!!! "
+    # <-------------
+
+    endTime = time.time()
+    print "time cost ", endTime - startTime, "s"

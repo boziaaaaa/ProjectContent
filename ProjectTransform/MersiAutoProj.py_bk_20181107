@@ -1,0 +1,123 @@
+from DataOuter.HdfDataOuter import *
+from DataProvider.MersiProvider import *
+from ProjProcessor import *
+import sys
+from ParameterParser import *
+import multiprocessing
+import time
+import os
+L1FilePath = ''
+
+
+def CreateStdProjProvider(resolution):
+    provider = MersiProvider()
+
+    # L1file = sys.argv[4] + 'FY3C_VIRRX_GBAL_L1_'+sys.argv[1]+'_1000M_MS.HDF'
+    # Lonfile = Latfile = \
+    #     GEOfile=sys.argv[4] + 'FY3C_VIRRX_GBAL_L1_'+sys.argv[1]+'_GEOXX_MS.HDF'
+    # OBCfile = sys.argv[4] + 'FY3C_VIRRX_GBAL_L1_'+sys.argv[1]+'_OBCXX_MS.HDF'
+    L1file =           sys.argv[4] + "FY3B_MERSI_ORBT_L2_OCC_MLT_NUL_"+sys.argv[1]+"_1000M.HDF"
+    Lonfile = Latfile = sys.argv[4] +"FY3B_MERSI_ORBT_L2_OCC_MLT_NUL_"+sys.argv[1]+"_1000M.HDF"
+    print "------->",L1file
+    if(os.path.exists(L1file) == False):
+        print("Input L1file Do Not Exist:")
+        print(L1file)
+        exit()
+    if(os.path.exists(Lonfile) == False):
+        print("Input LatitudeFile/LongitudeFile Do Not Exist:")
+        print(Latfile)
+        exit()
+
+    provider.SetLonLatFile(Latfile,Lonfile)
+    tempString = "FY3B_MERSI_ORBT_L2_OCC_MLT_GLL_"+sys.argv[1]+"_"+str(resolution)+"M"
+    provider.SetDataDescription(tempString)
+
+    AuxiliaryName = dict()
+    AuxiliaryPath = dict()
+    AuxiliaryName['Ocean_Rw_443'] = 'Ocean_Rw_443'
+    AuxiliaryName['Ocean_Rw_490'] = 'Ocean_Rw_490'
+    AuxiliaryName['Ocean_Rw_565'] = 'Ocean_Rw_565'
+    AuxiliaryName['Ocean_Rw_650'] = 'Ocean_Rw_650'
+    AuxiliaryName['Ocean_Flag'] = 'Ocean_Flag'
+    AuxiliaryName['Kd490'] = 'Kd490'
+    AuxiliaryName['POC'] = 'POC'
+    AuxiliaryName['Zsd'] = 'Zsd'
+    AuxiliaryName['a490'] = 'a490'
+    AuxiliaryName['acdom443'] = 'acdom443'
+    AuxiliaryName['bbp_531'] = 'bbp_531'
+    AuxiliaryName['chl'] = 'chl'
+    AuxiliaryName['salinity'] = 'salinity'
+    AuxiliaryName['tsm'] = 'tsm'
+    AuxiliaryName['tur'] = 'tur'
+    AuxiliaryName['Ocean_CHL1'] = 'Ocean_CHL1'
+    AuxiliaryName['Ocean_TSM'] = 'Ocean_TSM'
+    AuxiliaryName['Ocean_YS443'] = 'Ocean_YS443'
+
+    AuxiliaryPath['Ocean_Rw_443'] = \
+    AuxiliaryPath['Ocean_Rw_490'] = \
+    AuxiliaryPath['Ocean_Rw_565'] = \
+    AuxiliaryPath['Ocean_Rw_650'] = \
+    AuxiliaryPath['Ocean_Flag'] = \
+    AuxiliaryPath['Kd490'] = \
+    AuxiliaryPath['POC'] = \
+    AuxiliaryPath['Zsd'] = \
+    AuxiliaryPath['a490'] = \
+    AuxiliaryPath['acdom443'] = \
+    AuxiliaryPath['bbp_531'] = \
+    AuxiliaryPath['chl'] = \
+    AuxiliaryPath['salinity'] = \
+    AuxiliaryPath['tsm'] = \
+    AuxiliaryPath['tur'] = \
+    AuxiliaryPath['Ocean_CHL1'] = \
+    AuxiliaryPath['Ocean_TSM'] = \
+    AuxiliaryPath['Ocean_YS443'] = L1file
+    # AuxiliaryPath['SunAzimuth'] = \
+    #     AuxiliaryPath['SunZenith'] = \
+    #     AuxiliaryPath['Latitude'] = \
+    #     AuxiliaryPath['Longitude'] = \
+    #     AuxiliaryPath['SensorAzimuth'] = \
+    #     AuxiliaryPath['SensorZenith'] = \
+    #     AuxiliaryPath['LandCover'] = \
+    #     AuxiliaryPath['LandSeaMask'] =  GEOfile
+    #
+    provider.SetAuxiliaryDataFile(AuxiliaryName, AuxiliaryPath)
+
+    return  provider
+
+def ProcessProj(param,resolution):
+
+    provider = CreateStdProjProvider(resolution)
+
+    dataouter = HdfDataOuter()
+
+    processor = ProjProcessor(provider, dataouter, param)
+    processor.PerformProj()
+    processor.Dispose()
+
+def ProcessAuxProj(resolution):
+    paramparser = ParameterParser()
+    # auxparam = paramparser.parseXML(sys.argv[2])
+    # auxparam.OutputPath = sys.argv[5] #2016.10.12
+    auxparam = paramparser.parseXML(sys.argv[2])
+    auxparam.OutputPath = sys.argv[5]
+    auxparam.ProjectResolution = resolution
+    auxparam.IsAuxiliaryFileMode = True
+
+    ProcessProj(auxparam, resolution)
+if __name__ == '__main__':
+    starttime = time.clock()
+
+    L1FilePath = sys.argv[4]
+    paramparser = ParameterParser()
+    param = paramparser.parseXML(sys.argv[2])
+
+    param.OutputPath = sys.argv[5]
+
+    #L1FilePath = sys.argv[4]
+    #ProcessProj(param, int(sys.argv[3]))
+    #ProcessProj(param, 1000)
+    ProcessAuxProj(int(sys.argv[3]))
+
+    endtime = time.clock()
+
+    print "read: %f s" % (endtime - starttime)

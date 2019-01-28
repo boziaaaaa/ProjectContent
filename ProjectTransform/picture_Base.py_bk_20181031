@@ -1,0 +1,164 @@
+#-*-coding=UTF-8-*-
+import h5py
+import sys
+import numpy as N
+import os
+import glob
+import time
+import struct
+from PIL import Image
+from InsertDB import InsertDB
+
+def MosaicImage_gray(InputFilePath):
+      hdf_in = h5py.File(InputFilePath)
+      BandData = hdf_in['sea_surface_temperature'].value[:, :]
+
+      temp_Disk = BandData.astype('f4')
+      temp_Disk[temp_Disk < -800] = N.nan
+      max = N.nanmax(temp_Disk)
+      min = N.nanmin(temp_Disk)    
+          
+      temp_Disk[temp_Disk > max] = max        
+      temp_Disk[temp_Disk < min] = min           
+    
+      temp_Disk -= min
+      temp_Disk *=255
+      temp_Disk /=(max - min)
+      
+      img_Disk = Image.fromarray(temp_Disk.astype(N.uint8))
+      JPGname = InputFilePath.replace('.HDF', '.jpg')
+      img_Disk.save(JPGname)
+      hdf_in.close()
+      return 0
+
+def getRowColumn(MaxLon,MinLon,MaxLat,MinLat) :
+    rows = 21600    #fixed row value of .dat
+    columns = 43200 #fixed column value of .dat
+    column_right = (MaxLon - (-180))/360.0*columns
+    row_up = (90 - MaxLat)/180.0*rows
+    column_left = (MinLon - (-180))/360.0*columns
+    row_down = (90 - MinLat)/180.0*rows
+    return int(row_up),int(row_down),int(column_left),int(column_right)
+
+def getLandSeaMask(MaxLon,MinLon,MaxLat,MinLat,height,width):
+    row_up, row_down, column_left, column_right = getRowColumn(MaxLon, MinLon, MaxLat, MinLat)
+    print row_up - row_down, column_left - column_right
+    print row_up, row_down, column_left, column_right
+
+    LandSea = []
+    file = "/GDS/SSTWORK/ProjectTransform/PARAM/LAND_SGI.new" # land sea mask file
+    arsc_file = open(file, "rb")
+    rows = 21600
+    columns = 43200
+    skip_num = (row_up - 1) * columns + (column_left - 1)
+    arsc_file.seek(skip_num, 0)
+    for i in range(0, row_down - row_up + 1):
+        data = arsc_file.read(column_right - column_left + 1)
+        temp = struct.unpack("%dB" % (column_right - column_left + 1), data)
+        LandSea.append(temp)
+        skip_num = columns - column_right + column_left - 1
+        arsc_file.seek(skip_num, 1)
+
+    LandSea = N.array(LandSea)
+    img = Image.fromarray(N.uint8(LandSea))
+    img = img.resize((width, height))  # width , height
+    result = N.zeros((height, width))
+    print width, height
+    for h in range(0, height):
+        for w in range(0, width):
+            pixel = img.getpixel((w, h))
+            result[h, w] = pixel
+    return result
+
+def ttt():
+    max = N.nanmax(temp_Disk)
+    min = N.nanmin(temp_Disk)
+
+    temp_Disk[temp_Disk > max] = max
+    temp_Disk[temp_Disk < min] = min
+
+    temp_Disk -= min
+    temp_Disk *= 255
+    temp_Disk /= (max - min)
+
+    img_Disk = Image.fromarray(temp_Disk.astype(N.uint8))
+    JPGname = InputFilePath.replace('.png', '.png')
+    img_Disk.save(JPGname)
+
+def Trans(inputArray,MaxLon,MinLon,MaxLat,MinLat):
+      print inputArray.shape
+      if MaxLon==0 and MinLon==0 and MaxLat==0 and MinLat==0: # means do not need LandSeaMask
+          pass
+      else:
+          print "did i come here"
+          height,width = inputArray.shape
+          LandSeaMask = getLandSeaMask(MaxLon,MinLon,MaxLat,MinLat,height,width)
+          #print LandSeaMask
+          # import h5py
+          # f = h5py.File("/GDS/OUTPUT/SST/FY3C/PROD/L2/POAY/2018/20181231/la.HDF")
+          # f.create_dataset("aa",data = LandSeaMask)
+          # f.close()
+          inputArray[LandSeaMask == 1] = -888 # LandSeaMask ：land == 1
+
+      single = {    -888.0:[150,150,150],
+                    -999.0:[150,150,150],
+                    32767.0: [150, 150, 150],
+                    65530.0:[120,67, 29 ],
+                    65532.0:[172,172,166],
+                    65535.0:[255,255,255] }
+      colorbar = N.loadtxt("/GDS/SSTWORK/ProjectTransform/colorbar_NASA_final.txt")
+      gradient = {}
+      len = colorbar.shape[0] # rows number in colorbar
+      for i in range(0,len):
+         gradient[colorbar[i,0]] =  list(colorbar[i,1:4]) #make a dict ,same as single(above)
+         #print colorbar[i, 0]
+
+      inputArray = N.array(inputArray)
+      r = N.zeros(inputArray.shape)
+      g = N.zeros(inputArray.shape)
+      b = N.zeros(inputArray.shape)
+      for key in single:
+        r[inputArray == key] = single[key][0]
+        g[inputArray == key] = single[key][1]
+        b[inputArray == key] = single[key][2]
+
+      mask_0 = inputArray<0
+      mask_0 &= inputArray>-100
+      mask_32 = inputArray >32
+      mask_32 &= inputArray <32767 # 65535 65534 65532
+      inputArray[mask_0] = 0
+      inputArray[mask_32] = 32  #the range of temperature is 0~32
+
+      for key in gradient:
+        if key >= 0 and key <= 32:#temperature is 0~32
+          #print key
+          mask = inputArray >= key
+          mask &= inputArray < (key+0.089) #interval of colorbar is 0.089
+          r[mask] = gradient[key][0]
+          g[mask] = gradient[key][1]
+          b[mask] = gradient[key][2]
+      return r,g,b
+
+#                                 MaxLon,MinLon,MaxLat,MinLat --> passed to Trans()
+def MosaicImage_RGB(InputFilePath,MaxLon=0,MinLon=0,MaxLat=0,MinLat=0):
+    hdf_in = h5py.File(InputFilePath)
+    BandData = hdf_in['sea_surface_temperature'].value[:, :]
+
+    #mask_t = N.where(BandData > -800)
+    mask_t = BandData > -800
+    mask_t &= BandData < 32767
+    BandData[mask_t] = BandData[mask_t] / 100
+    r, g, b = Trans(BandData,MaxLon,MinLon,MaxLat,MinLat)  # bb bigger Image Redder
+    Height, Width = BandData.shape
+    f = 150
+    rgbArray = N.zeros((Height, Width, 4), 'uint8')
+    rgbArray[..., 0] = r
+    rgbArray[..., 1] = g
+    rgbArray[..., 2] = b
+    rgbArray[..., 3] = ((r!=f) | (g!=f) | (b!=f)).astype('u1')*255
+    OutputImg = Image.fromarray(rgbArray,mode="RGBA")
+    JPGname = InputFilePath.replace('.HDF', '.png')
+    OutputImg.save(JPGname)
+    hdf_in.close()
+    return 0
+

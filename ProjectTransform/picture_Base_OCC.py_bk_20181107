@@ -1,0 +1,136 @@
+#-*-coding=UTF-8-*-
+import h5py
+import sys
+import numpy as N
+import os
+import glob
+import time
+import struct
+from PIL import Image
+from InsertDB import InsertDB
+
+
+# def MosaicImage_gray(InputFilePath):
+#
+#
+#     img_Disk = Image.fromarray(temp_Disk.astype(N.uint8))
+#     JPGname = InputFilePath.replace('.HDF', '.jpg')
+#     img_Disk.save(JPGname)
+#
+#     return 0
+def Trans(EachName,inputArray,MaxLon,MinLon,MaxLat,MinLat):
+      print inputArray.shape
+      if MaxLon==0 and MinLon==0 and MaxLat==0 and MinLat==0: # means do not need LandSeaMask
+          pass
+      else:
+          print "did i come here"
+          height,width = inputArray.shape
+          LandSeaMask = getLandSeaMask(MaxLon,MinLon,MaxLat,MinLat,height,width)
+          inputArray[LandSeaMask == 1] = -888 # LandSeaMask ：land == 1
+
+      single = { 0:[150,150,150],32767.0: [150, 150, 150],-32767.0: [150, 150, 150]}
+      colorbar = N.loadtxt("/GDS/SSTWORK/ProjectTransform/PARAM/colorbar_OCC_"+EachName+".txt")
+      print "/GDS/SSTWORK/ProjectTransform/PARAM/colorbar_OCC_"+EachName+".txt"
+      inputArray = N.array(inputArray)
+      r = N.zeros(inputArray.shape)
+      g = N.zeros(inputArray.shape)
+      b = N.zeros(inputArray.shape)
+      for key in single:
+        r[inputArray == key] = single[key][0]
+        g[inputArray == key] = single[key][1]
+        b[inputArray == key] = single[key][2]
+
+      mask_0 = inputArray<0
+      mask_0 &= inputArray>-100
+      mask_100 = inputArray >100
+      mask_100 &= inputArray <32767 # 65535 65534 65532
+      inputArray[mask_0] = 0
+      inputArray[mask_100] = 100  #the range of temperature is 0~32
+      key_last = 0
+      index = 0
+      for key in colorbar[:,0]:
+          mask = inputArray > key_last
+          mask &= inputArray <= key
+          r[mask] = colorbar[index,1]
+          g[mask] = colorbar[index,2]
+          b[mask] = colorbar[index,3]
+          key_last = key
+          index = index + 1
+      return r,g,b
+
+#                                 MaxLon,MinLon,MaxLat,MinLat --> passed to Trans()
+def MosaicImage_RGB(InputFilePath,output_PNGname,MaxLon=0,MinLon=0,MaxLat=0,MinLat=0):
+
+    # DatasetsName  = ['Kd490','POC','Zsd','a490','acdom443','bbp_531','chl','salinity','tsm','tur',\
+    #                   'Ocean_Flag']
+    DatasetsName  = ['Ocean_Rw_443','Ocean_Rw_490','Ocean_Rw_565','Ocean_Rw_650','Kd490','POC','Zsd','a490','acdom443','bbp_531','chl','salinity','tsm','tur','Ocean_Flag']
+    print InputFilePath
+    hdf_in = h5py.File(InputFilePath)
+    print hdf_in.keys()
+    # for Ocean_Data in hdf_in.keys():
+    #     if "Ocean" in Ocean_Data and "Ocean_Aod" not in Ocean_Data and "Ocean_Rw_865" not in Ocean_Data:
+    #         DatasetsName.append(Ocean_Data)
+    print DatasetsName
+    for EachName in DatasetsName:
+        BandData = hdf_in[EachName].value[:, :]
+        Slope = hdf_in[EachName].attrs['Slope']
+        try:
+            Slope = N.float(Slope[0])
+        except:
+            pass
+        print EachName," Slope is",Slope
+        if EachName=="chl"or EachName=="tur"or EachName=="tsm"or EachName=="POC"\
+           or EachName=="a490" or EachName=='bbp_531'or EachName=='acdom443'or EachName=='Kd490'\
+           or EachName== 'salinity'or EachName== 'Zsd'\
+           or EachName== 'Ocean_Rw_443' or EachName== 'Ocean_Rw_490' or EachName=='Ocean_Rw_565'\
+           or EachName== 'Ocean_Rw_650':
+
+            if EachName == 'Ocean_Rw_443' or EachName == 'Ocean_Rw_490' or EachName == 'Ocean_Rw_565' \
+               or EachName == 'Ocean_Rw_650':
+                 BandData = BandData / 10000.0
+            # BandData = BandData * Slope
+            r, g, b = Trans(EachName,BandData,MaxLon,MinLon,MaxLat,MinLat)  # bb bigger Image Redder
+            Height, Width = BandData.shape
+            f = 150
+            rgbArray = N.zeros((Height, Width, 4), 'uint8')
+            rgbArray[..., 0] = r
+            rgbArray[..., 1] = g
+            rgbArray[..., 2] = b
+            rgbArray[..., 3] = ((r!=f) | (g!=f) | (b!=f)).astype('u1')*255
+            OutputImg = Image.fromarray(rgbArray,mode="RGBA")
+            output_PNGname_final = output_PNGname.replace(".","_"+EachName+".")
+            OutputImg.save(output_PNGname_final)
+            # ------------>begin to write into SQl
+            command = "python /GDS/SSTWORK/ProjectTransform/fileNameToSQL2.py " + output_PNGname_final + " " + InputFilePath + " " + "w"
+            status = os.system(command)
+            if status == 0:
+                print "file name write to SQL Success!!! "
+            # <-------------
+        elif EachName=="Ocean_Flag": #gary picture
+            row, column = BandData.shape
+            print BandData
+            cloud = []
+            for i in range(row):
+                for j in range(column):
+                    temp = bin(BandData[i, j])
+                    temp = temp[2:]
+                    temp = temp.zfill(32)
+                    cloud.append(int(temp[2]))
+            BandData = N.array(cloud)
+            del cloud
+            BandData = BandData.reshape(row, column)
+            BandData[BandData == 1] = 255
+            print BandData
+            print BandData[BandData>0]
+            img_Disk = Image.fromarray(BandData.astype(N.uint8))
+            output_PNGname_final = output_PNGname.replace(".", "_" + EachName + ".")
+            img_Disk.save(output_PNGname_final)
+            # ------------>begin to write into SQl
+            command = "python /GDS/SSTWORK/ProjectTransform/fileNameToSQL2.py " + output_PNGname_final + " " + InputFilePath + " " + "w"
+            status = os.system(command)
+            if status == 0:
+                print "file name write to SQL Success!!! "
+            # <-------------
+    hdf_in.close()
+    return 0
+

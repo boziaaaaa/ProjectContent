@@ -1,0 +1,123 @@
+#-*-coding=utf-8-*-
+import h5py
+import os
+import os.path
+import numpy as Np
+import sys
+
+import xml.etree.ElementTree as ET
+from DataOuter.HdfDataOuter import *
+from DataProvider.H8DataProvider import *
+from DataProvider.FY3AVirrProvider import *
+from ProjProcessor import *
+from multiprocessing import Pool
+
+
+def parseXML(xmlfile):
+    tree = ET.parse(xmlfile)
+    root = tree.getroot()
+    minlat = 0
+    minlon = 0
+    maxlat = 0
+    maxlon = 0
+
+    for projrange in root.iter('ProjRange'):
+        maxlon = projrange.find('MaxLon').text
+        minlon = projrange.find('MinLon').text
+        maxlat = projrange.find('MaxLat').text
+        minlat = projrange.find('MinLat').text
+
+    return int(maxlat), int(minlat), int(maxlon), int(minlon)
+
+
+def CheckHDF(filePath, maxLat_xml, minLat_xml, maxLon_xml, minLon_xml):
+    fileHandle = h5py.File(filePath, 'a')
+    groupPath = '/'
+    latName = 'Latitude'
+    lonName = 'Longitude'
+    hdfgroup = fileHandle[groupPath]
+    lat = hdfgroup[latName].value
+    lon = hdfgroup[lonName].value
+    lat = Np.array(lat)
+    lon = Np.array(lon)
+
+    fileHandle.close()
+    lat_new = lat[Np.where(lat > -999)]
+    lon_new = lon[lon > -999]
+    maxLat = Np.max(lat_new)
+    minLat = Np.min(lat_new)
+    maxLon = Np.max(lon_new)
+    minLon = Np.min(lon_new)
+    print "maxLat, minLat, maxLon, minLon"
+    print maxLat, minLat, maxLon, minLon
+
+    #maxLat_xml, minLat_xml, maxLon_xml, minLon_xml = parseXML(xmlfile)
+
+    # if(maxLat < 3 or minLat > 42 or maxLon <105  or minLon > 130):
+    print(minLat_xml, maxLat_xml, minLon_xml, maxLon_xml)
+    if (maxLat < minLat_xml or minLat > maxLat_xml or maxLon < minLon_xml or minLon > maxLon_xml):
+        return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    # inpu_sstdata_tPath = "D:/Data_Proj/FY3C_VIRRX/"
+    inputPath = sys.argv[1]
+    outputPath = sys.argv[2]
+    print "Project of L2 MERSI  Begin!"
+    print "input L1 file Path is : ", inputPath
+    print "output L1 mosaic file Path is : ", outputPath
+    date = sys.argv[3]
+    xmlfile = sys.argv[4]
+    resolution = sys.argv[5]
+    files = os.listdir(inputPath)
+
+    #command_multiprocess = []#20171130 多线程
+
+    maxLat_xml, minLat_xml, maxLon_xml, minLon_xml = parseXML(xmlfile)#投影范围，从xml配置文件中读取
+
+
+    i = 0;
+    for f in files:
+        #"FY3B_MERSI_ORBT_L2_OCC_MLT_NUL_20180319_0840_1000M.HDF"
+        if ("FY3B_MERSI_ORBT_L2_OCC_MLT_NUL_" in f) and ("_1000M.HDF" in f) and (date in f):
+
+            time = f[-23:-10]
+            print time
+            #temp_str = inpu_sstdata_tPath + 'FY3C_VIRRX_GBAL_L1_' + time + '_GEOXX_MS.HDF'
+            # temp_str = temp_str.replace("SST", "VIRRX")
+            # GEOfile = temp_str.replace("-bak", "")
+            filePathName_str = inputPath + f
+
+            if os.path.exists(filePathName_str) == False:
+                print("Input GEOfile Do Not Exist:")
+                print(filePathName_str)
+                exit()
+            N = CheckHDF(filePathName_str, maxLat_xml, minLat_xml, maxLon_xml, minLon_xml)
+            if N == 1:
+                print "not in the range !!!!!!"
+                continue
+            print filePathName_str
+            # command = "python /GDS/SSTWORK/ProjectTransform/FY3CAutoProj.py "+time+" /GDS/SSTWORK/ProjectTransform/FY3C_1000m_Proj.xml 1000 "+inpu_sstdata_tPath+" "+outputPath
+            #command = "python /GDS/SSTWORK/ProjectTransform/MersiAutoProj.py " + time + " " + xmlfile + " 1000 " + inpu_sstdata_tPath + " " + outputPath
+            command = "python /GDS/SSTWORK/ProjectTransform/MersiAutoProj.py " + time + " " + xmlfile + " "+resolution+" " + inputPath + " " + outputPath
+
+            print command
+            # print "1111111111111111111"
+            status = -1
+            status = os.system(command) #20171130 多线程
+            #command_multiprocess.append(command)#20171130 多线程
+            print status
+
+            i = i + 1
+    if i == 0:
+        print "Wrong,no suitable file!"
+
+
+    #多线程
+    # print command_multiprocess
+    # pool = Pool(4)
+    # pool(os.system,command_multiprocess)
+    # pool.close()
+    # pool.join()

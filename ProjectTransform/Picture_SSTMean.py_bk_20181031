@@ -1,0 +1,100 @@
+import h5py
+from PIL import Image
+import numpy as N
+import sys
+import os
+import xml.etree.ElementTree as ET
+import time
+import datetime
+from picture_Base import MosaicImage_RGB
+
+def parseXML(xmlfile):
+    tree = ET.parse(xmlfile)
+    root = tree.getroot()
+    minlat = 0
+    minlon = 0
+    maxlat = 0
+    maxlon = 0
+
+    for projrange in root.iter('ProjRange'):
+        maxlon = projrange.find('MaxLon').text
+        minlon = projrange.find('MinLon').text
+        maxlat = projrange.find('MaxLat').text
+        minlat = projrange.find('MinLat').text
+
+    return int(maxlat), int(minlat), int(maxlon), int(minlon)
+
+def find_last(string,str):
+    last_position=-1
+    while True:
+        last_position = last_position + 1
+        position=string.find(str,last_position)
+        if position==-1:
+            return last_position
+def input_outputPath(configureFile,YYYYMMDD,DayOrNight,TD_AM_AQ_AY):
+    YYYYMM = YYYYMMDD[0:4]
+    f_txt = open(configureFile)
+    lines = f_txt.readlines()
+    inputPath = ""
+    outputPath = ""
+    for line in lines:
+        if "inputPath_SST_HDF" in line and TD_AM_AQ_AY in line:
+            index_begin = line.find('/')
+            index_end = find_last(line,'/')
+            #inputPath = line[int(index_begin):int(index_end)] + YYYYMM + "/"  + YYYYMMDD + "/"
+            inputPath = line[int(index_begin):int(index_end)]
+        elif "outputPath_SST_PNG" in line and TD_AM_AQ_AY in line:
+            index_begin = line.find('/')
+            index_end = find_last(line,'/')
+            outputPath = line[int(index_begin):int(index_end)]
+            #outputPath = line[int(index_begin):int(index_end)] + YYYYMM + "/" + YYYYMMDD + "/"
+    return inputPath,outputPath
+def get_yestoday(mytime):
+    myday = datetime.datetime( int(mytime[0:4]),int(mytime[4:6]),int(mytime[6:8]) )
+    delta = datetime.timedelta(days=-1)
+    my_yestoday = myday + delta
+    my_yes_time = my_yestoday.strftime('%Y%m%d')
+    return my_yes_time
+
+if __name__ == "__main__":
+    YYYYMMDD = sys.argv[1]
+    TD_AM_AQ_AY = sys.argv[2] #10days, a month, a season, a year
+    DayOrNight = sys.argv[3]
+    flag = ""
+    if DayOrNight == "D":
+        flag = "VIRRD"
+    else:
+        flag = "VIRRN"
+    # MaxLon = 138
+    # MinLon = 104
+    # MaxLat = 34
+    # MinLat = 4
+    configureFile = "/GDS/SSTWORK/ProjectTransform/PARAM/Picture_SSTMean.txt"
+    xmlfile = "/GDS/SSTWORK/ProjectTransform/FY3C_5000m_Proj.xml"
+    MaxLat,MinLat,MaxLon,MinLon = parseXML(xmlfile)
+    inputPath, outputPath = input_outputPath(configureFile,YYYYMMDD,DayOrNight,TD_AM_AQ_AY)
+    print "inputPath",inputPath
+    print "outputPath",outputPath
+    if os.path.exists(inputPath) == False:
+        print "inputPath do not exist",inputPath
+        exit(0)
+    HDFfiles = os.listdir(inputPath)
+    index = 0
+    YYYYMMDD_yestoday = get_yestoday(YYYYMMDD)
+    print "YYYYMMDD_yestoday",YYYYMMDD_yestoday
+    for HDFfile in HDFfiles:
+        if ".HDF" in HDFfile and flag in HDFfile and YYYYMMDD_yestoday in HDFfile:
+            print HDFfile
+            input_HDF = inputPath+HDFfile
+            output_PNGname = outputPath + HDFfile
+            output_PNGname = output_PNGname.replace('.HDF', '.png')
+            # MosaicImage_gray(input_HDF,output_PNGname)
+            print "--->",MaxLon,MinLon,MaxLat,MinLat
+            MosaicImage_RGB(input_HDF,MaxLon,MinLon,MaxLat,MinLat)
+            #write every fileName to SQL
+            command = "python /GDS/SSTWORK/ProjectTransform/fileNameToSQL.py "\
+                      +output_PNGname+" "+input_HDF+ " "+DayOrNight
+            os.system(command)
+            index = index + 1
+    if index == 0:
+        print "no suitable inputFile !!!"

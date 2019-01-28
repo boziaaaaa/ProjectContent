@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2011 (http://www.altova.com) by lijiao (lijiao) -->
+<ProjConfig ProjMethod="ConformalProjection" ProjFormat="hdf" Satellite="FY3BMersi " xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="file:///C:/Users/lijiao/Desktop/%e5%b7%a5%e4%bd%9c%e7%9b%b8%e5%85%b3/ProjectionTransform/ProjConfig.xsd">
+	<ProjInfor>
+		<ProjFormat>1</ProjFormat>
+		<ProjTaskName>H8</ProjTaskName>
+		<ProjMethod>latlong</ProjMethod>
+		<Resolution>2000</Resolution>
+		<StandardLon>0</StandardLon>
+		<CentralLon>145</CentralLon>
+	</ProjInfor>
+	<ProjRange>
+		<MaxLon>140</MaxLon>
+		<MinLon>70</MinLon>
+		<MaxLat>60</MaxLat>
+		<MinLat>0</MinLat>
+	</ProjRange>
+	<BandsToProj>
+		<BandWaveLength>0046,0051,0064,0086,0160,0230,0390,0620,0700,0730,0860,0960,1040,1120,1230,1330</BandWaveLength>
+	</BandsToProj>
+</ProjConfig>

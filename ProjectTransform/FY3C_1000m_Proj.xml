@@ -1,0 +1,19 @@
+<ProjConfig xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ProjFormat="hdf" ProjMethod="ConformalProjection" Satellite="FY3BMersi " xsi:noNamespaceSchemaLocation="file:///C:/Users/lijiao/Desktop/%e5%b7%a5%e4%bd%9c%e7%9b%b8%e5%85%b3/ProjectionTransform/ProjConfig.xsd">
+	<ProjInfor>
+		<ProjFormat>1</ProjFormat>
+		<ProjTaskName>proj</ProjTaskName>
+		<ProjMethod>latlong</ProjMethod>
+		<Resolution>1000</Resolution>
+		<StandardLon>0</StandardLon>
+		<CentralLon>121</CentralLon>
+	</ProjInfor>
+	<ProjRange>0
+		<MaxLon>138</MaxLon>
+		<MinLon>104</MinLon>
+		<MaxLat>34</MaxLat>
+		<MinLat>4</MinLat>
+	</ProjRange>
+	<BandsToProj>
+		<BandWaveLength>0046,0051,0064,0086,0051,0064,0086,0051,0064,0086</BandWaveLength>
+	</BandsToProj>
+</ProjConfig>

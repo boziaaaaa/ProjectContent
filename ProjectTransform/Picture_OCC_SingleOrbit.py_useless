@@ -1,0 +1,280 @@
+#-*-coding=utf-8-*-
+import h5py
+from PIL import Image
+import numpy as N
+import sys
+import os
+import glob
+import time
+import struct
+from InsertDB import InsertDB
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from  matplotlib import  colors
+
+def Trans(EachName, inputArray, MaxLon, MinLon, MaxLat, MinLat):
+    print inputArray.shape
+    if MaxLon == 0 and MinLon == 0 and MaxLat == 0 and MinLat == 0:  # means do not need LandSeaMask
+        pass
+    else:
+        print "did i come here"
+        height, width = inputArray.shape
+        LandSeaMask = getLandSeaMask(MaxLon, MinLon, MaxLat, MinLat, height, width)
+        inputArray[LandSeaMask == 1] = -888  # LandSeaMask ：land == 1
+
+    # single = {0: [150, 150, 150], 32767.0: [150, 150, 150], -32767.0: [150, 150, 150]}
+    single = {-1:[200,200,200],0: [150, 150, 150], 32767.0: [150, 150, 150], -32767.0: [150, 150, 150]}
+
+    colorbar = N.loadtxt("/GDS/SSTWORK/ProjectTransform/PARAM/colorbar_OCC_" + EachName + ".txt")
+    print "/GDS/SSTWORK/ProjectTransform/PARAM/colorbar_OCC_" + EachName + ".txt"
+    inputArray = N.array(inputArray)
+    r = N.zeros(inputArray.shape)
+    g = N.zeros(inputArray.shape)
+    b = N.zeros(inputArray.shape)
+    for key in single:
+        r[inputArray == key] = single[key][0]
+        g[inputArray == key] = single[key][1]
+        b[inputArray == key] = single[key][2]
+
+    mask_0 = inputArray < 0
+    mask_0 &= inputArray > -100
+    mask_100 = inputArray > 100
+    mask_100 &= inputArray < 32767  # 65535 65534 65532
+    inputArray[mask_0] = 0
+    inputArray[mask_100] = 100  # the range of temperature is 0~32
+    key_last = 0
+    index = 0
+    for key in colorbar[:, 0]:
+        mask = inputArray > key_last
+        mask &= inputArray <= key
+        r[mask] = colorbar[index, 1]
+        g[mask] = colorbar[index, 2]
+        b[mask] = colorbar[index, 3]
+        key_last = key
+        index = index + 1
+    return r, g, b
+
+
+#                                 MaxLon,MinLon,MaxLat,MinLat --> passed to Trans()
+def MosaicImage_RGB(InputFilePath, output_PNGname, MaxLon=0, MinLon=0, MaxLat=0, MinLat=0):
+    # DatasetsName  = ['Kd490','POC','Zsd','a490','acdom443','bbp_531','chl','salinity','tsm','tur',\
+    #                   'Ocean_Flag']
+    # DatasetsName = ['Kd490', 'POC', 'Zsd', 'a490', 'acdom443', 'bbp_531', 'chl', 'salinity', 'tsm', 'tur', 'Ocean_Flag']
+    DatasetsName = ['Kd490', 'POC', 'Zsd', 'a490', 'acdom443', 'bbp_531', 'chl', 'salinity', 'tsm', 'tur', 'Ocean_Flag', \
+                    'Ocean_Aod_550','Ocean_CHL1','Ocean_CHL2','Ocean_PIG1','Ocean_TSM','Ocean_YS443',
+                    'Ocean_Rw_412','Ocean_Rw_443','Ocean_Rw_490','Ocean_Rw_520','Ocean_Rw_565','Ocean_Rw_650',
+                    'Ocean_Rw_685','Ocean_Rw_765']
+
+    print InputFilePath
+    hdf_in = h5py.File(InputFilePath)
+    print hdf_in.keys()
+    # for Ocean_Data in hdf_in.keys():
+    #     if "Ocean" in Ocean_Data and "Ocean_Aod" not in Ocean_Data and "Ocean_Rw_865" not in Ocean_Data:
+    #         DatasetsName.append(Ocean_Data)
+    print DatasetsName
+
+    #----->yuanbo 20180602 add grid
+    lat = hdf_in["Latitude"].value[:, :]
+    lon = hdf_in["Longitude"].value[:, :]
+    maxLat = N.max(lat)
+    minLat = N.min(lat)
+    maxLon = N.max(lon)
+    minLon =  N.min(lon)
+    print int(minLat),int(maxLat)
+    for lat_t in range(int(minLat),int(maxLat),2):
+        lat[abs(lat-lat_t)<0.02] = 65535
+    for lon_t in range(int(minLon),int(maxLon),2):
+        lon[abs(lon-lon_t)<0.02] = 65535
+    mask_grid_lat = N.where(lat == 65535)
+    mask_grid_lon = N.where(lon == 65535)
+    #<-----yuanbo 20180602 add grid
+
+
+    for EachName in DatasetsName:
+        # try:
+        #     BandData = hdf_in[EachName].value[:, :]
+        #     Slope = hdf_in[EachName].attrs['Slope']
+        # except:
+        #     print "Read data Error->",EachName
+        #     continue
+        try:
+            BandData = hdf_in[EachName].value[:, :]
+        except:
+            print "Read BandData Error->",EachName
+            continue
+        try:
+            Slope = hdf_in[EachName].attrs['Slope']
+        except:
+            Slope = 1
+            
+        try:
+            Slope = N.float(Slope[0])
+        except:
+            pass
+        print EachName, " Slope is", Slope
+        if EachName == "chl" or EachName == "tur" or EachName == "tsm" or EachName == "POC" \
+                or EachName == "a490" or EachName == 'bbp_531' or EachName == 'acdom443' or EachName == 'Kd490' \
+                or EachName == 'salinity' or EachName == 'Zsd':
+            # BandData = BandData / 10000.0
+            BandData = BandData * Slope
+
+            # <-----yuanbo 20180602 : add grid
+            BandData[mask_grid_lat] = -1
+            BandData[mask_grid_lon] = -1
+            # <-----yuanbo 20180602 :add grid
+            #print BandData
+            r, g, b = Trans(EachName, BandData, MaxLon, MinLon, MaxLat, MinLat)  # bb bigger Image Redder
+            Height, Width = BandData.shape
+            f = 150
+            rgbArray = N.zeros((Height, Width, 4), 'uint8')
+            rgbArray[..., 0] = r
+            rgbArray[..., 1] = g
+            rgbArray[..., 2] = b
+            rgbArray[..., 3] = ((r != f) | (g != f) | (b != f)).astype('u1') * 255
+            #print rgbArray
+            OutputImg = Image.fromarray(rgbArray, mode="RGBA")
+            output_PNGname_final = output_PNGname.replace(".", "_" + EachName + ".")
+
+            # output_PNGname_final=output_PNGname_final.replace("/image","/image_test")
+
+            OutputImg.save(output_PNGname_final)
+
+            im = Image.open(output_PNGname_final)
+            # print N.array(im)
+            # colorbar = N.loadtxt("/GDS/SSTWORK/ProjectTransform/PARAM/colorbar_OCC_" + EachName + ".txt").squeeze()[:, 1:] / 255.
+            colorbar = N.loadtxt("/GDS/SSTWORK/ProjectTransform/PARAM/colorbar_OCC_" + EachName + ".txt")
+
+            im1 = colorbar.squeeze()[:, 1:] / 255.
+            color_max = N.max(colorbar[:,0])
+            color_min = N.min(colorbar[:,0])
+            cmapp = colors.ListedColormap(colors=im1)
+            cmapp.set_bad(alpha=0)
+            plt.imshow(im, cmap=cmapp, interpolation='nearest',vmax=color_max,vmin=color_min)
+            plt.colorbar()
+
+            plt.axis('off')
+            plt.savefig(output_PNGname_final,transparent=True)
+            plt.close()
+
+        elif EachName == "Ocean_Flag":  # gary picture
+            row, column = BandData.shape
+            # print BandData
+            cloud = []
+            for i in range(row):
+                for j in range(column):
+                    temp = bin(BandData[i, j])
+                    temp = temp[2:]
+                    temp = temp.zfill(32)
+                    cloud.append(int(temp[2]))
+            BandData = N.array(cloud)
+            del cloud
+            BandData = BandData.reshape(row, column)
+            BandData[BandData == 1] = 255
+            # print BandData
+            # print BandData[BandData > 0]
+            img_Disk = Image.fromarray(BandData.astype(N.uint8))
+            output_PNGname_final = output_PNGname.replace(".", "_" + EachName + ".")
+            img_Disk.save(output_PNGname_final)
+        else:
+            BandData = BandData * Slope
+
+            # <-----yuanbo 20180602 : add grid
+            BandData[mask_grid_lat] = -1
+            BandData[mask_grid_lon] = -1
+            # <-----yuanbo 20180602 :add grid
+            #print BandData
+            #
+            r, g, b = Trans(EachName, BandData, MaxLon, MinLon, MaxLat, MinLat)  # bb bigger Image Redder
+            Height, Width = BandData.shape
+            f = 150
+            rgbArray = N.zeros((Height, Width, 4), 'uint8')
+            rgbArray[..., 0] = r
+            rgbArray[..., 1] = g
+            rgbArray[..., 2] = b
+            rgbArray[..., 3] = ((r != f) | (g != f) | (b != f)).astype('u1') * 255
+            #print rgbArray
+            OutputImg = Image.fromarray(rgbArray, mode="RGBA")
+            output_PNGname_final = output_PNGname.replace(".", "_" + EachName + ".")
+
+            # output_PNGname_final=output_PNGname_final.replace("/image","/image_test")
+
+            OutputImg.save(output_PNGname_final)
+
+            im = Image.open(output_PNGname_final)
+            # print N.array(im)
+            # colorbar = N.loadtxt("/GDS/SSTWORK/ProjectTransform/PARAM/colorbar_OCC_" + EachName + ".txt").squeeze()[:, 1:] / 255.
+            colorbar = N.loadtxt("/GDS/SSTWORK/ProjectTransform/PARAM/colorbar_OCC_" + EachName + ".txt")
+
+            im1 = colorbar.squeeze()[:, 1:] / 255.
+            color_max = N.max(colorbar[:,0])
+            color_min = N.min(colorbar[:,0])
+            cmapp = colors.ListedColormap(colors=im1)
+            cmapp.set_bad(alpha=0)
+            plt.imshow(im, cmap=cmapp, interpolation='nearest',vmax=color_max,vmin=color_min)
+            plt.colorbar()
+
+            plt.axis('off')
+            plt.savefig(output_PNGname_final,transparent=True)
+            plt.close()
+    hdf_in.close()
+    return 0
+
+
+def find_last(string,str):
+    last_position=-1
+    while True:
+        last_position = last_position + 1
+        position=string.find(str,last_position)
+        if position==-1:
+            return last_position
+def input_outputPath(configureFile,YYYYMMDD,DayOrNight):
+    f_txt = open(configureFile)
+    lines = f_txt.readlines()
+    inputPath = ""
+    outputPath = ""
+    for line in lines:
+        if "inputPath_OCC_HDF" in line:
+            index_begin = line.find('/')
+            index_end = find_last(line, '/')
+            inputPath = line[int(index_begin):int(index_end)] + YYYYMMDD + "/"
+        elif "outputPath_OCC_PNG" in line:
+            index_begin = line.find('/')
+            index_end = find_last(line,'/')
+            outputPath = line[int(index_begin):int(index_end)] + YYYYMMDD + "/image/"
+    return inputPath,outputPath
+if __name__ == "__main__":
+    YYYYMMDD_HHMM = sys.argv[1]
+    YYYYMMDD = YYYYMMDD_HHMM[0:8]
+    YYYYMMDD_HHMM = YYYYMMDD_HHMM[0:8]+"_"+YYYYMMDD_HHMM[8:12]
+    print "777777777777",YYYYMMDD_HHMM
+    #DayOrNight = sys.argv[2]
+    DayOrNight = ""
+    configureFile = "/GDS/SSTWORK/ProjectTransform/PARAM/Picture_OCC_SingleOrbit.txt"
+    inputPath, outputPath = input_outputPath(configureFile,YYYYMMDD,DayOrNight)
+    print "inputPath",inputPath
+    print "outputPath",outputPath
+    if os.path.exists(inputPath) == False:
+        print "inputPath do not exist",inputPath
+        exit(0)
+    if os.path.exists(outputPath) == False:
+        print "outputPath do not exist,Create!!",outputPath
+        cmd = "mkdir " + outputPath
+        print cmd
+        os.system(cmd)        
+    HDFfiles = os.listdir(inputPath)
+    for HDFfile in HDFfiles:
+        if ".HDF" in HDFfile and YYYYMMDD_HHMM in HDFfile:
+            print HDFfile
+            input_HDF = inputPath+HDFfile
+            output_PNGname = outputPath + HDFfile
+            output_PNGname = output_PNGname.replace('.HDF', '.png')
+            # MosaicImage_gray(input_HDF,output_PNGname)
+
+            MosaicImage_RGB(input_HDF,output_PNGname)
+
+            #write every fileName to SQL
+            # command = "python /GDS/SSTWORK/ProjectTransform/fileNameToSQL.py "\
+            #           +output_PNGname+" "+input_HDF+ " "+DayOrNight
+            # os.system(command)

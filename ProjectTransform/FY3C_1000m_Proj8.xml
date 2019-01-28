@@ -1,0 +1,8 @@
+<ProjConfig xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ProjFormat="hdf" ProjMethod="ConformalProjection" Satellite="FY3BMersi " xsi:noNamespaceSchemaLocation="file:///C:/Users/lijiao/Desktop/%e5%b7%a5%e4%bd%9c%e7%9b%b8%e5%85%b3/ProjectionTransform/ProjConfig.xsd">
+	<ProjInfor>
+		<ProjFormat>1</ProjFormat>
+		<ProjTaskName>proj</ProjTaskName>
+		<ProjMethod>latlong</ProjMethod>
+		<Resolution>1000</Resolution>
+		<StandardLon>0</StandardLon>
+		<CentralLon>
