@@ -35,7 +35,23 @@ def ParseConfig(configFile):
             elif "local_path" in line:
                 config["local_path"] = line.split("=")[-1].strip()
     return config
-if __name__=="__main__":
+
+if __name__=="__main__": #每天自动下载一次
+    day_flag = ""
+    date_now = (datetime.datetime.now()-datetime.timedelta(1)).strftime("%Y%m%d")
+    print date_now,day_flag
+    configFile = r"D:\ProjectContent\ftp_download\LMI_L1B_Picture_configure.cfg"
+    config = ParseConfig(configFile)
+    Days = getEachDay(str(config["startDate"]),str(config["endDate"]))
+    YYYYMMDD = date_now
+    serverPath =  config["server_path"]+YYYYMMDD
+    localPath = config["local_path"]
+    print serverPath
+    print localPath
+    sftp = ftp_downLoad_base.sftp(config["Host"], config["port"], config["user"], config["passward"])
+    sftp.DownLoad(serverPath, localPath)
+
+if __name__=="__main33__":
     configFile = "LMI_L1B_Picture_configure.cfg"
     config = ParseConfig(configFile)
     Days = getEachDay(str(config["startDate"]),str(config["endDate"]))
