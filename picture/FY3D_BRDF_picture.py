@@ -1,63 +1,45 @@
 # coding=utf8
-# import pyproj
-# import numpy
-# import matplotlib.pyplot as plt
-# from PIL import Image
-# import h5py
-# import math
-# from cStringIO import StringIO
-# from mpl_toolkits.basemap import Basemap
-# def readLatLongFile(inputLatLong):
-#     latlon = numpy.fromfile(inputLatLong,">f4")
-#     widthAndHeight = int(math.sqrt(len(latlon)/2))
-#     lat = latlon[len(latlon)/2:]
-#     lon = latlon[:len(latlon)/2]
-#     return lat[::10],lon[::10]
-# def readBandFile(inputBandFile,bandNames):
-#     fHandle = h5py.File(inputLatLong,"r")
-#     print fHandle
-#     fHandle.close()
-# def proj(lat,lon):
-#     pass
-# if __name__ == "__main__":
-#     inputBandFile = r"D:\CODE_dust_ChenLin\inputdata数据\FY2E\FY2E_FDI_ALL_NOM_20100319_1400.hdf"
-#     inputLatLong = "D:\CODE_dust_ChenLin\inputdata数据\FY2_latLon\FY2E_IJToLatLon.NOM"
-#     outputBandFile = r"C:\Users\bozi\Desktop\test\FY2E_FDI_ALL_NOM_20100319_1400_test.hdf"
-#     lat,lon = readLatLongFile(inputLatLong)
-#     print lat[lat<300]
-#     print lon[lon<300]
-#     fig = plt.figure(figsize=(7.2,3.6))
-#     plt.axes([0, 0, 1, 1]
-#              , frameon=False)
-#     map = Basemap(llcrnrlon=-180,
-#                   llcrnrlat=-90,
-#                   urcrnrlon=180,
-#                   # urcrnrlat=90,
-#                   resolution='c', projection='cyl', lat_0=0, lon_0=0,)
-#     x,y = map(lon,lat)
-#     map.scatter(x,y,marker = ',',s=1)
-#     data = numpy.asarray(plt)
-#     buffer_tmp = StringIO()
-#     # plt.box()
-#     # map.drawcoastlines()
-#     # plt.show()
-#     plt.savefig(buffer_tmp,format = 'png',dpi=200)
-#     data = Image.open(buffer_tmp)
-#     data = numpy.asarray(data)
-#     Index = data[:,:,0] == 255
-#     Index &=data[:,:,1] == 255
-#     Index &=data[:,:,2] == 255
-#     Index_out = numpy.zeros(Index.shape)
-#     Index_out[Index == False] = 1
-#     with h5py.File(outputBandFile,"w") as f_out:
-#         f_out.create_dataset("test",data = Index_out)
-
-# -*- coding: utf-8 -*-
-"""
-演示二维插值。
-"""
+import re
 import numpy
 import matplotlib.pyplot as plt
+
+def txtAll2txtEach():
+    station = ["Dunhuang",
+              "Libya1",
+              "Libya4",
+              "Arabia2",
+              "Lanai",
+              "Algeria5",
+              "Sonora",
+              "Algeria3",
+              "Mauritania2"]
+
+    inputTXT = r"D:\temp_10.24.34.219\useless\BRDF_2019_all.txt"
+    for Index in range(9):
+        # Index = 9
+        outTXT = r"D:\temp_10.24.34.219\useless\BRDF_2019_"+station[Index]+".txt"
+        f_out = open(outTXT,"w")
+        with open(inputTXT,"r") as f:
+            lines = f.readlines()
+            for line in lines:
+                line = re.split(" |,",line)
+                line_new = []
+                for num in line:
+                    if num:
+                        line_new.append(num)
+                station1 = []
+                station1.append(line_new[0])
+                try:
+                    for i in range(7):
+                        station1.append(line_new[i*9+1+Index])
+                except:
+                    continue
+                print station1
+                for j in station1:
+                    f_out.write(j)
+                    f_out.write("   ")
+                f_out.write("\n")
+        f_out.close()
 
 def getBandN(inputFile,year):
     bandN = [[],[],[],[],[],[],[]]
@@ -86,15 +68,13 @@ def getBandN(inputFile,year):
     bandN[bandN>32] = 1
     return bandN
 
-def plotBandN(bandAll,year,outputFile):
-    plt.figure(figsize=(30, 80))
+def plotBandN(bandAll,year,outputFile,station):
+    plt.figure(figsize=(15, 7))
     plt.ylim([0,1])
     plt.xlim([1,365])
     plt.rcParams['font.sans-serif'] = ['SimHei']
     plt.rcParams['axes.unicode_minus'] = False
-    # plt.title(unicode(year)+u"年甘肃敦煌BRDF")
-    plt.title(unicode(year)+u"年Libya4BRDF")
-
+    plt.title(unicode(year)+u"年"+station+"BRDF")
     plt.text(1.1,0.9,u"值为0表示缺失数据\n值为1表示填充值32767")
     plt.ylabel("Reflectance")
     plt.xlabel("DSL")
@@ -107,19 +87,23 @@ def plotBandN(bandAll,year,outputFile):
         bandN = bandAll[i]
         pN[i] = plt.plot(bandN,color = colors[i],linestyle=' ',marker =markers[i],markersize=5,label = note[i])
     plt.legend(loc='upper right')
-    plt.show()
-    # plt.savefig(outputFile,dpi=100)
+    # plt.show()
+    plt.savefig(outputFile,dpi=100)
     plt.close()
 
 if __name__ == "__main__":
-    # year = '2017'
-    # inputFile = r"C:\Users\bozi\Desktop\test\BRDF_test_"+year+".txt"
-    # outputFile = r"C:\Users\bozi\Desktop\test\BRDF_test_"+year+".png"
-    # bandN_2017 = getBandN(inputFile,year)
-    # plotBandN(bandN_2017,year,outputFile)
-
-    year = '2018'
-    inputFile = r"C:\Users\bozi\Desktop\test\BRDF_test_Libya4_"+year+".txt"
-    outputFile = r"C:\Users\bozi\Desktop\test\BRDF_test_"+year+".png"
-    bandN_2018 = getBandN(inputFile,year)
-    plotBandN(bandN_2018,year,outputFile)
+    year = '2019'
+    stations = ["Dunhuang",
+               "Libya1",
+               "Libya4",
+               "Arabia2",
+               "Lanai",
+               "Algeria5",
+               "Sonora",
+               "Algeria3",
+               "Mauritania2"]
+    for station in stations:
+        inputFile = r"D:\temp_10.24.34.219\useless\BRDF_"+year+"_"+station+".txt"
+        outputFile = inputFile.replace(".txt",".png")
+        bandN_2018 = getBandN(inputFile,year)
+        plotBandN(bandN_2018,year,outputFile,station)
