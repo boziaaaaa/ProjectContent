@@ -5,10 +5,10 @@ import re
 import thread
 import time
 import codecs
-
+import sys
 class QSBK:
-    def __init__(self):
-        self.page = 1
+    def __init__(self,page=1):
+        self.page = page
         self.user_agent = 'Mozilla/4.0(compatible;MSIE 5.5;Windows NT)'
         self.headers={'User-Agent':self.user_agent}
         self.stories = []
@@ -44,7 +44,10 @@ class QSBK:
         for story in pageStories:
 
             # self.GetPageItems()
-            print u"ooooooo%soooooooo"%(story)
+            try:
+                print u"ooooooo%soooooooo"%(story)
+            except:
+                continue
             # input = raw_input()
             # if input == "Q":
             #     self.enable = False
@@ -74,6 +77,14 @@ class QSBK:
         self.__joke=self.GetPageItems(1)
         #self.writeData(self.__joke)
         self.getOneStory(self.__joke)
-run = QSBK()
-run.start()
-input(u"input ENTER to exit")
+
+if __name__=="__main__":
+    page = 1
+    try:
+        page = sys.argv[1]
+        print "set page success,page->",page
+    except:
+        pass
+    run = QSBK(page)
+    run.start()
+    input(u"input ENTER to exit")
