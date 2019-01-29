@@ -1,3 +1,4 @@
+#coding=utf8
 import urllib
 import urllib2
 import re
@@ -75,3 +76,4 @@ class QSBK:
         self.getOneStory(self.__joke)
 run = QSBK()
 run.start()
+input(u"input ENTER to exit")
