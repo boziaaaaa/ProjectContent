@@ -6,6 +6,7 @@ import json
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
+#图灵网站账号是手机或boziaaaaa邮箱，key is tuling123
 def tuling(inputString):
     while True:
         cmd = inputString
