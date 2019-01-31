@@ -10,7 +10,7 @@ def Email():
     mail_host = "smtp.163.com"
     mail_user = "boziabozi"
     # mail_pass = raw_input("password:")
-    mail_pass = "jianchi408"
+    mail_pass = ""
     receiver = "boziabozi@163.com"
     sender = "bozi" + "<" + mail_user + "@163.com" + ">" # 注意发件人格式
     message = MIMEMultipart("mult")
