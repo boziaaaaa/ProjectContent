@@ -1,5 +1,6 @@
+missing module named org - imported by copy
 missing module named readline - imported by cmd, pdb
-missing module named org - imported by pickle
+missing module named 'org.python' - imported by pickle
 missing module named fcntl - imported by tempfile, subprocess
 missing module named riscosenviron - imported by os
 missing module named riscospath - imported by os
@@ -10,7 +11,6 @@ missing module named os2 - imported by os
 missing module named pwd - imported by posixpath, getpass
 missing module named posix - imported by os
 missing module named resource - imported by posix
-missing module named 'org.python' - imported by copy
 missing module named _scproxy - imported by urllib
 missing module named EasyDialogs - imported by getpass
 missing module named termios - imported by getpass
