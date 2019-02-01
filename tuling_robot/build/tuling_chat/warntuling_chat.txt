@@ -8,9 +8,15 @@ missing module named riscos - imported by os
 missing module named ce - imported by os
 missing module named _emx_link - imported by os
 missing module named os2 - imported by os
-missing module named pwd - imported by posixpath, getpass
+missing module named pwd - imported by posixpath, getpass, shutil, tarfile
 missing module named posix - imported by os
 missing module named resource - imported by posix
+missing module named 'win32com.gen_py' - imported by win32com, c:\python27\lib\site-packages\PyInstaller\loader\rthooks\pyi_rth_win32comgenpy.py
+missing module named _sysconfigdata - imported by distutils.sysconfig
+missing module named grp - imported by shutil, tarfile
+missing module named PyObjCTools - imported by pyttsx.drivers.nsss
+missing module named AppKit - imported by pyttsx.drivers.nsss
+missing module named Foundation - imported by pyttsx.drivers.nsss
 missing module named _scproxy - imported by urllib
 missing module named EasyDialogs - imported by getpass
 missing module named termios - imported by getpass
